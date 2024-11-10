@@ -1,5 +1,6 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 import tensorflow as tf
+from flask_cors import CORS
 from pytubefix import YouTube
 import cv2
 from collections import deque
@@ -9,7 +10,7 @@ import numpy as np
 
 app = Flask(__name__)
 
-
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.route('/')
 def home():
@@ -18,6 +19,11 @@ def home():
 @app.route('/about')
 def about():
     return 'About'
+
+
+@app.route('/videos/<path:filename>')
+def serve_video(filename):
+    return send_from_directory('../videos', filename)
 
 model_path = '../models/LRCN_model__Date_Time_2024_11_08__22_46_09__Loss_0.41232773661613464__Accuracy_0.868852436542511.h5'
 model = tf.keras.models.load_model(model_path)
@@ -108,8 +114,9 @@ def predict():
                 # Convert float32 to standard Python float
         confidence = float(predicted_labels_probabilities[predicted_label])
            
+        video_url = f'http://{request.host}/videos/{video_title}.mp4'   
         video_reader.release()
-        return jsonify({'prediction': predicted_class_name, "confidence": confidence}), 200
+        return jsonify({'prediction': predicted_class_name, "confidence": confidence,  "video_url": video_url}), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
