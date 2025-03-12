@@ -5,8 +5,15 @@ from pytubefix import YouTube
 import cv2
 from collections import deque
 import numpy as np
+import os
+from openai import OpenAI
+from googletrans import Translator
+import asyncio
+import re
+import json
 
 
+translator = Translator()
 
 app = Flask(__name__)
 
@@ -25,8 +32,13 @@ def about():
 def serve_video(filename):
     return send_from_directory('../videos', filename)
 
-model_path = '../models/LRCN_model__Date_Time_2024_11_08__22_46_09__Loss_0.41232773661613464__Accuracy_0.868852436542511.h5'
-model = tf.keras.models.load_model(model_path)
+model_path = 'models/LRCN_model__Date_Time_2024_11_08__22_46_09__Loss_0.41232773661613464__Accuracy_0.868852436542511.h5'
+
+if os.path.exists(model_path):
+    model = tf.keras.models.load_model(model_path)
+else:
+    print(f"Model file not found at {model_path}")
+    model = None  # ou gérer l\'absence du modèle de manière appropriée
 
 def download_youtube_videos(youtube_video_url, output_directory):
     try:
@@ -46,7 +58,6 @@ def download_youtube_videos(youtube_video_url, output_directory):
     except Exception as e:
         print(f"Error downloading video: {e}")
         return None, str(e)
-
 
 
 
@@ -122,10 +133,61 @@ def predict():
         return jsonify({'error': str(e)}), 500
     
    
-     
+client = OpenAI(
+    base_url="https://api.aimlapi.com/v1",
+    # Insert your AIML API Key in the quotation marks instead of <YOUR_API_KEY>.
+    api_key=os.getenv("AIML_API_KEY") ,  
+)
 
 
-   
+ 
+async def translate_to_english(text):
+    # Détecter la langue du texte
+    detected =  await translator.detect(text)
+    original_language = detected.lang
+    # Traduire le texte en anglais
+    translated =  await translator.translate(text, dest='en')
+    return translated.text, original_language
+
+async def translate_to_original_language(text, original_language):
+    # Traduire le texte dans la langue d\'origine
+    translated =  await translator.translate(text, dest=original_language)
+    return translated.text
+
+
+  
+  
+@app.route('/chat', methods=['POST'])
+async def chat():
+    try:
+        data = request.get_json()
+        message = data['message']
+        if not message:
+            return jsonify({'error': "message is required"}), 400
+        
+        translated_message, original_language  =  await translate_to_english(message)
+
+        response = client.chat.completions.create(
+        model="deepseek/deepseek-chat",
+        messages=[
+            {
+                 "role": "system",
+               "content": "You are a virtual assistant specialized in creating workout plans or meal plans. Only respond to questions related to these topics. Do not provide medical advice or diagnose health conditions.  If it's a meal plan i want an array of object [{ title, {ingredient, quantity, description}, meal, description}] if it's a workout plan i want an array of object [{title, {exercise, sets, reps, description}, description}]",
+           },
+           {
+               "role": "user",
+               "content": translated_message,
+           },
+         ],
+         max_tokens=1000,
+         response_format={"type":"text"}
+         )
+
+        result = response.choices[0].message.content
+        return jsonify({ "base" :result }), 200
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 if __name__ == '__main__':
