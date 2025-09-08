@@ -167,24 +167,64 @@ async def chat():
         
         translated_message, original_language  =  await translate_to_english(message)
 
-        response = client.chat.completions.create(
-        model="deepseek/deepseek-chat",
-        messages=[
-            {
-                 "role": "system",
-               "content": "You are a virtual assistant specialized in creating workout plans or meal plans. Only respond to questions related to these topics. Do not provide medical advice or diagnose health conditions.  If it's a meal plan i want an array of object [{ title, {ingredient, quantity, description}, meal, description}] if it's a workout plan i want an array of object [{title, {exercise, sets, reps, description}, description}]",
-           },
-           {
-               "role": "user",
-               "content": translated_message,
-           },
-         ],
-         max_tokens=1000,
-         response_format={"type":"text"}
-         )
 
-        result = response.choices[0].message.content
-        return jsonify({ "base" :result }), 200
+        system_prompt = """
+        You are a virtual assistant specialized in creating workout plans or meal plans. Only respond to questions strictly related to these topics. Do not provide medical advice or attempt to diagnose any health conditions. Respond only in raw JSON format with no Markdown, no code blocks, and no additional explanation.
+        For a meal plan, return an array of objects like this:
+        [
+        {
+            "title": "Breakfast - Oatmeal Bowl",
+            "ingredients": [
+            { "ingredient": "Rolled oats", "quantity": "50g", "description": "Base of the meal" },
+            { "ingredient": "Banana", "quantity": "1 medium", "description": "Adds sweetness and texture" },
+            { "ingredient": "Almond milk", "quantity": "200ml", "description": "Liquid to cook the oats" }
+            ],
+            "meal": "breakfast",
+            "description": "A healthy and filling oatmeal bowl rich in fiber and energy."
+        }
+        ]
+        For a workout plan, return an array of objects like this:
+        [
+        {
+            "title": "Day 1 - Upper Body Strength",
+            "exercises": [
+            { "exercise": "Bench Press", "sets": "4", "reps": "8", "description": "Focus on chest and triceps" },
+            { "exercise": "Pull-ups", "sets": "3", "reps": "Max", "description": "Bodyweight back exercise" }
+            ],
+            "description": "A push-pull focused workout to build upper body strength."
+        }
+        ]
+        Respond only in pure JSON with no formatting or markup.
+        """
+
+        model="deepseek/deepseek-chat",
+        # response = client.chat.completions.create(
+        #     messages=[
+        #     {
+        #         "role": "system",
+        #        "content": system_prompt,
+        #    },
+        #    {
+        #        "role": "user",
+        #        "content": translated_message,
+        #    },
+        #  ],
+        #  max_tokens=4000,
+        #  response_format={"type":"json_object"}
+        #  )
+        # result = response.choices[0].message.content
+
+        result =  "`` JSON\n[\n    {\n        \"Titre\": \"Jour 1 - Heavy Squat Focus\",\n        \"Exercices\": [\n            {\"Exercice\": \"Back Squat\", \"sets\": \"5\", \"Reps\": \"5\", \"Description\": \"poids lourd, concentrez-vous sur la forme et la profondeur\"},\n            {\"Exercice\": \"Squat avant\", \"sets\": \"3\", \"Reps\": \"8\", \"Description\": \"poids modéré, construire quadruple résistance\"},\n            {\"exercice\": \"soulevé de terre roumain\", \"sets\": \"4\", \"représentants\": \"6\", \"Description\": \"Hamens et focus du fessier\"},\n            {\"Exercice\": \"Leg Press\", \"sets\": \"3\", \"Reps\": \"10\", \"Description\": \"Volume supplémentaire pour les jambes\"},\n            {\"Exercice\": \"Calf Rassement\", \"Set\": \"4\", \"Reps\": \"12\", \"Description\": \"Build Calf Force\"}\n        ],\n        \"Description\": \"jour de squat lourd pour construire la force du bas du corps et la masse musculaire.\"\n    },\n    {\n        \"Titre\": \"Jour 2 - Bench Press Focus\",\n        \"Exercices\": [\n            {\"Exercice\": \"Bench Press\", \"Set\": \"5\", \"Reps\": \"5\", \"Description\": \"poids lourd, concentrez-vous sur la poitrine et les triceps\"},\n            {\"Exercice\": \"Incline Dumbbell Press\", \"Set\": \"4\", \"Reps\": \"8\", \"Description\": \"Upper Chest Focus\"},\n            {\"exercice\": \"pendages pondérés\", \"sets\": \"3\", \"représentants\": \"6\", \"Description\": \"triceps et poitrine\"},\n            {\"Exercice\": \"Balbell Rows\", \"sets\": \"4\", \"Reps\": \"6\", \"Description\": \"Back Force to Support Banc\"},\n            {\"Exercice\": \"Face Fulls\", \"Set\": \"3\", \"Reps\": \"12\", \"Description\": \"arrière Delt et Upper Back\"}\n        ],\n        \"Description\": \"Focus du haut du corps avec un développé couché et des exercices de soutien.\"\n    },\n    {\n        \"Titre\": \"Jour 3 - Focus de soulevé de terre\",\n        \"Exercices\": [\n            {\"exercice\": \"soulevé de terre\", \"sets\": \"5\", \"représentants\": \"3\", \"Description\": \"poids lourd, concentrez-vous sur le formulaire\"},\n            {\"Exercice\": \"Deampit Deadlift\", \"sets\": \"3\", \"Reps\": \"5\", \"Description\": \"construire une force hors du sol\"},\n            {\"exercice\": \"pull-ups\", \"sets\": \"4\", \"représentants\": \"max\", \"Description\": \"Back and Grip Force\"},\n            {\"Exercice\": \"Barbell Shrugs\", \"sets\": \"4\", \"Reps\": \"8\", \"Description\": \"Trap Development\"},\n            {\"Exercice\": \"suspension des jambes\", \"sets\": \"3\", \"représentants\": \"12\", \"Description\": \"Core Strength\"}\n        ],\n        \"Description\": \"Day de soulevé de terre pour construire une chaîne postérieure et une résistance globale.\"\n    },\n    {\n        \"Titre\": \"Jour 4 - Accessoire et volume\",\n        \"Exercices\": [\n            {\"Exercice\": \"Averhead Press\", \"sets\": \"4\", \"Reps\": \"6\", \"Description\": \"Force de l'épaule\"},\n            {\"Exercice\": \"Close Grip Bench Press\", \"sets\": \"3\", \"Reps\": \"8\", \"Description\": \"Triceps focus\"},\n            {\"exercice\": \"lat pulldown\", \"sets\": \"4\", \"représentants\": \"8\", \"Description\": \"Back largeur\"},\n            {\"Exercice\": \"Haltolel Rauses latérales\", \"sets\": \"3\", \"Reps\": \"12\", \"Description\": \"Development d'épaule\"},\n            {\"exercice\": \"planche\", \"sets\": \"3\", \"représentants\": \"60 sec\", \"Description\": \"Core Stability\"}\n        ],\n        \"Description\": \"Jour accessoire pour aborder les points faibles et ajouter du volume.\"\n    }\n]]\n`` '"
+        #translated_result = await translate_to_original_language(result, original_language)
+
+        # Clean the result by removing unwanted characters
+        result = re.sub(r'`` JSON|``', '', result)
+        result = result.replace("\"", "")
+        result = re.sub(r'\n', '', result)
+        result = result.replace("\t", "")
+        result = result.replace("'", "")
+        result = result.replace("  ", "")
+        return jsonify({"base" :result}), 200
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
